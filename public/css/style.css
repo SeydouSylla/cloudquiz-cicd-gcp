@@ -1,0 +1,161 @@
+/* Styles de CloudQuiz, par-dessus Bootstrap 5.
+   La couleur d'accent est définie UNE seule fois ici :
+   la changer suffit pour qu'une nouvelle version se voie au premier coup d'œil. */
+
+:root {
+  --cq-accent: #2563eb;        /* bleu : version 1.x */
+  --cq-accent-dark: #1d4ed8;
+  --cq-accent-soft: #e8efff;
+  --cq-ink: #0f172a;
+  --cq-muted: #64748b;
+  --cq-bg: #f6f8fb;
+  --bs-body-font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --bs-body-color: var(--cq-ink);
+  --bs-body-bg: var(--cq-bg);
+  --bs-border-radius: .6rem;
+  --bs-border-radius-lg: .9rem;
+}
+
+body {
+  min-height: 100vh;
+}
+
+/* ---------- Couleur d'accent ---------- */
+.text-accent { color: var(--cq-accent) !important; }
+.bg-accent { background-color: var(--cq-accent) !important; }
+.text-bg-accent-soft { background: var(--cq-accent-soft); color: var(--cq-accent-dark); font-weight: 600; }
+
+.btn-accent {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--cq-accent);
+  --bs-btn-border-color: var(--cq-accent);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--cq-accent-dark);
+  --bs-btn-hover-border-color: var(--cq-accent-dark);
+  --bs-btn-active-bg: var(--cq-accent-dark);
+  --bs-btn-active-border-color: var(--cq-accent-dark);
+  font-weight: 600;
+}
+
+.form-control:focus {
+  border-color: var(--cq-accent);
+  box-shadow: 0 0 0 .2rem var(--cq-accent-soft);
+}
+
+/* ---------- Navigation ---------- */
+.brand-logo {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: .55rem;
+  background: var(--cq-accent);
+  color: #fff;
+}
+.version-pill { font-weight: 600; color: var(--cq-muted); }
+.navbar .nav-link { border-radius: .5rem; font-weight: 500; }
+.navbar .nav-link.active { background: var(--cq-accent-soft); color: var(--cq-accent-dark); }
+
+/* ---------- Accueil ---------- */
+.hero-kicker {
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--cq-accent);
+  margin-bottom: .5rem;
+}
+.hero-title {
+  font-size: clamp(1.9rem, 4vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -.02em;
+  line-height: 1.1;
+  max-width: 18ch;
+}
+.hero-text { color: var(--cq-muted); font-size: 1.1rem; max-width: 60ch; }
+
+.card {
+  --bs-card-bg: #fff;
+  border-color: #e5e9f0;
+}
+.table { --bs-table-bg: #fff; }
+
+.topic-card {
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  text-align: left;
+  width: 100%;
+  background: #fff;
+}
+.topic-card:hover,
+.topic-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--cq-accent);
+  box-shadow: 0 .5rem 1.25rem rgba(15, 23, 42, .08) !important;
+  outline: none;
+}
+.topic-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: .75rem;
+  font-size: 1.35rem;
+  background: var(--cq-accent-soft);
+  color: var(--cq-accent);
+}
+
+/* ---------- Quiz ---------- */
+.quiz-wrapper { max-width: 760px; }
+
+.option-btn {
+  text-align: left;
+  padding: .9rem 1.1rem;
+  --bs-btn-border-color: #dfe4ec;
+  --bs-btn-hover-border-color: var(--cq-accent);
+  --bs-btn-disabled-border-color: #dfe4ec;
+  --bs-btn-border-width: 1.5px;
+  background: #fff;
+  color: var(--cq-ink);
+  border-radius: .7rem;
+  display: flex;
+  gap: .85rem;
+  align-items: flex-start;
+}
+.option-btn:hover:not(:disabled) { border-color: var(--cq-accent); background: #fbfcff; }
+.option-btn:disabled { opacity: 1; }
+.option-letter {
+  flex: none;
+  width: 1.8rem;
+  height: 1.8rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: .45rem;
+  background: #eef1f6;
+  font-weight: 700;
+  font-size: .85rem;
+}
+.option-btn.is-correct { border-color: #16a34a; background: #effaf2; }
+.option-btn.is-correct .option-letter { background: #16a34a; color: #fff; }
+.option-btn.is-wrong { border-color: #dc2626; background: #fef2f2; }
+.option-btn.is-wrong .option-letter { background: #dc2626; color: #fff; }
+
+/* ---------- Résultat ---------- */
+.score-ring {
+  --pct: 0;
+  width: 9rem;
+  height: 9rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(var(--cq-accent) calc(var(--pct) * 1%), #e8edf4 0);
+  position: relative;
+}
+.score-ring::before {
+  content: "";
+  position: absolute;
+  inset: .7rem;
+  border-radius: 50%;
+  background: #fff;
+}
+.score-ring span { position: relative; font-size: 1.8rem; font-weight: 800; }

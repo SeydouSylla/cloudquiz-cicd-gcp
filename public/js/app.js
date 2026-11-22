@@ -1,0 +1,193 @@
+// Logique de l'interface CloudQuiz (JavaScript sans framework).
+// L'interface parle uniquement à notre API : elle ne connaît jamais les bonnes réponses à l'avance.
+
+const LETTERS = ['A', 'B', 'C', 'D'];
+
+// État du quiz en cours
+const state = {
+  topics: [],
+  topic: null,
+  questions: [],
+  index: 0,
+  score: 0,
+  startedAt: 0,
+};
+
+// Raccourci pour récupérer un élément par son id
+const $ = (id) => document.getElementById(id);
+
+// Petit utilitaire pour appeler l'API et récupérer du JSON
+async function api(url, options = {}) {
+  const response = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || `Erreur ${response.status}`);
+  }
+  return data;
+}
+
+// ---------- Navigation entre les vues ----------
+
+function showView(name) {
+  document.querySelectorAll('.view').forEach((v) => v.classList.add('d-none'));
+  $(`view-${name}`).classList.remove('d-none');
+  document.querySelectorAll('.navbar .nav-link').forEach((link) => {
+    link.classList.toggle('active', link.dataset.view === name);
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.addEventListener('click', (event) => {
+  const target = event.target.closest('[data-view]');
+  if (target) {
+    event.preventDefault();
+    showView(target.dataset.view);
+  }
+});
+
+// ---------- Accueil : thèmes ----------
+
+async function loadTopics() {
+  const container = $('topics');
+  try {
+    state.topics = await api('/api/topics');
+  } catch (err) {
+    container.innerHTML = '<div class="col-12"><div class="alert alert-danger">Impossible de charger les thèmes.</div></div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  state.topics.forEach((topic) => {
+    const col = document.createElement('div');
+    col.className = 'col-md-6 col-lg-4';
+    col.innerHTML = `
+      <button type="button" class="card topic-card shadow-sm h-100 p-0">
+        <div class="card-body p-4">
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <span class="topic-icon"><i class="bi bi-${topic.icon}"></i></span>
+            <div>
+              <h3 class="h5 fw-semibold mb-0"></h3>
+              <span class="small text-muted">${topic.count} questions</span>
+            </div>
+          </div>
+          <p class="text-muted small mb-0"></p>
+        </div>
+      </button>`;
+    // textContent plutôt qu'innerHTML pour les textes : pas d'injection de HTML possible
+    col.querySelector('h3').textContent = topic.name;
+    col.querySelector('p').textContent = topic.description;
+    col.querySelector('button').addEventListener('click', () => startQuiz(topic));
+    container.appendChild(col);
+  });
+}
+
+// ---------- Quiz ----------
+
+async function startQuiz(topic) {
+  try {
+    state.questions = await api(`/api/questions?topic=${encodeURIComponent(topic.id)}`);
+  } catch (err) {
+    alert(`Impossible de charger les questions : ${err.message}`);
+    return;
+  }
+  state.topic = topic;
+  state.index = 0;
+  state.score = 0;
+  state.startedAt = Date.now();
+  $('quizTopic').textContent = topic.name;
+  showView('quiz');
+  showQuestion();
+}
+
+function showQuestion() {
+  const q = state.questions[state.index];
+  const total = state.questions.length;
+
+  $('quizCounter').textContent = `Question ${state.index + 1} / ${total}`;
+  $('quizProgress').style.width = `${(state.index / total) * 100}%`;
+  $('questionText').textContent = q.question;
+  $('feedback').className = 'alert mt-4 mb-0 d-none';
+  $('nextBtn').classList.add('d-none');
+
+  const options = $('options');
+  options.innerHTML = '';
+  q.options.forEach((text, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'option-btn btn';
+    btn.innerHTML = `<span class="option-letter">${LETTERS[i]}</span><span class="option-text"></span>`;
+    btn.querySelector('.option-text').textContent = text;
+    btn.addEventListener('click', () => answer(i));
+    options.appendChild(btn);
+  });
+}
+
+async function answer(choice) {
+  const q = state.questions[state.index];
+  const buttons = $('options').querySelectorAll('button');
+  buttons.forEach((b) => { b.disabled = true; });
+
+  let result;
+  try {
+    // C'est le serveur qui corrige la réponse
+    result = await api('/api/answers', {
+      method: 'POST',
+      body: JSON.stringify({ id: q.id, choice }),
+    });
+  } catch (err) {
+    buttons.forEach((b) => { b.disabled = false; });
+    alert(`Erreur de correction : ${err.message}`);
+    return;
+  }
+
+  if (result.correct) state.score += 1;
+  buttons[result.answer].classList.add('is-correct');
+  if (!result.correct) buttons[choice].classList.add('is-wrong');
+
+  const feedback = $('feedback');
+  feedback.className = `alert mt-4 mb-0 ${result.correct ? 'alert-success' : 'alert-danger'}`;
+  feedback.innerHTML = `<strong>${result.correct ? 'Bonne réponse !' : 'Mauvaise réponse.'}</strong> <span></span>`;
+  feedback.querySelector('span').textContent = result.explanation;
+
+  const isLast = state.index === state.questions.length - 1;
+  $('nextBtn').innerHTML = isLast
+    ? 'Voir mon score<i class="bi bi-flag ms-2"></i>'
+    : 'Question suivante<i class="bi bi-arrow-right ms-2"></i>';
+  $('nextBtn').classList.remove('d-none');
+  $('nextBtn').focus();
+}
+
+$('nextBtn').addEventListener('click', () => {
+  if (state.index < state.questions.length - 1) {
+    state.index += 1;
+    showQuestion();
+  } else {
+    finishQuiz();
+  }
+});
+
+$('quitBtn').addEventListener('click', () => showView('home'));
+$('replayBtn').addEventListener('click', () => startQuiz(state.topic));
+
+// ---------- Résultat ----------
+
+async function finishQuiz() {
+  const total = state.questions.length;
+  const durationSec = Math.round((Date.now() - state.startedAt) / 1000);
+  const percent = Math.round((state.score / total) * 100);
+
+  $('quizProgress').style.width = '100%';
+  $('scoreValue').textContent = `${state.score}/${total}`;
+  $('scoreRing').style.setProperty('--pct', percent);
+  $('resultTitle').textContent = percent >= 75 ? 'Excellent !' : percent >= 50 ? 'Pas mal !' : 'Continuez à réviser !';
+  $('resultDetail').textContent = `${percent} % de bonnes réponses sur le thème ${state.topic.name}, en ${durationSec} s.`;
+  showView('result');
+
+}
+
+// ---------- Démarrage ----------
+
+loadTopics();
