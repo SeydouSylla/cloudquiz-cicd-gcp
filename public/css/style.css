@@ -18,6 +18,10 @@
 
 body {
   min-height: 100vh;
+  padding-bottom: 4rem; /* place pour le bandeau de déploiement */
+}
+@media (max-width: 767px) {
+  body { padding-bottom: 6rem; } /* le bandeau passe sur deux lignes sur mobile */
 }
 
 /* ---------- Couleur d'accent ---------- */
@@ -159,3 +163,21 @@ body {
   background: #fff;
 }
 .score-ring span { position: relative; font-size: 1.8rem; font-weight: 800; }
+
+/* ---------- Bandeau de déploiement ---------- */
+.deploy-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1030;
+  background: var(--cq-ink);
+  color: #cbd5e1;
+}
+.deploy-bar b { color: #fff; font-weight: 600; }
+.deploy-chip {
+  background: rgba(255, 255, 255, .07);
+  border-radius: 1rem;
+  padding: .15rem .65rem;
+  white-space: nowrap;
+}

@@ -48,6 +48,22 @@ document.addEventListener('click', (event) => {
   }
 });
 
+// ---------- Bandeau de déploiement ----------
+
+async function loadDeployInfo() {
+  try {
+    const info = await api('/version');
+    $('navVersion').textContent = `v${info.version}`;
+    $('depVersion').textContent = info.version;
+    $('depCommit').textContent = info.commit;
+    $('depRevision').textContent = info.revision;
+    $('depTime').textContent = new Date(info.buildTime).toLocaleString('fr-FR');
+  } catch (err) {
+    $('depVersion').textContent = 'inconnue';
+  }
+
+}
+
 // ---------- Accueil : thèmes ----------
 
 async function loadTopics() {
@@ -190,4 +206,5 @@ async function finishQuiz() {
 
 // ---------- Démarrage ----------
 
+loadDeployInfo();
 loadTopics();

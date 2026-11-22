@@ -22,6 +22,7 @@
       <a class="navbar-brand d-flex align-items-center gap-2" href="#" data-view="home">
         <span class="brand-logo"><i class="bi bi-cloud-check-fill"></i></span>
         <span class="fw-bold">CloudQuiz</span>
+        <span class="badge rounded-pill text-bg-light border version-pill" id="navVersion">v…</span>
       </a>
       <ul class="navbar-nav ms-auto gap-1">
         <li class="nav-item"><a class="nav-link active" href="#" data-view="home"><i class="bi bi-house-door me-1"></i><span class="d-none d-sm-inline">Accueil</span></a></li>
@@ -91,6 +92,17 @@
     </section>
 
   </main>
+
+  <!-- Bandeau de déploiement : la preuve visuelle du CI/CD -->
+  <footer class="deploy-bar">
+    <div class="container d-flex flex-wrap align-items-center gap-2 gap-md-3 py-2 small">
+      <span class="fw-semibold"><i class="bi bi-rocket-takeoff me-1"></i>Déploiement</span>
+      <span class="deploy-chip">version <b id="depVersion">…</b></span>
+      <span class="deploy-chip">commit <b id="depCommit">…</b></span>
+      <span class="deploy-chip">révision <b id="depRevision">…</b></span>
+      <span class="deploy-chip d-none d-md-inline">build <b id="depTime">…</b></span>
+    </div>
+  </footer>
 
   <script src="js/app.js"></script>
 </body>
