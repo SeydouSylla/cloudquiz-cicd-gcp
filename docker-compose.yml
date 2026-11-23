@@ -1,0 +1,32 @@
+# Environnement de développement local : l'application + une base PostgreSQL.
+# Lancement : docker compose up --build   puis ouvrir http://localhost:8080
+# Le mot de passe ci-dessous sert UNIQUEMENT en local. En production, il est dans Secret Manager.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cloudquiz
+      POSTGRES_PASSWORD: cloudquiz
+      POSTGRES_DB: cloudquiz
+    volumes:
+      - db-data:/var/lib/postgresql/data   # les scores survivent à l'arrêt des conteneurs
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cloudquiz -d cloudquiz"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # "db" est le nom du service ci-dessus : Compose le résout automatiquement
+      DATABASE_URL: postgres://cloudquiz:cloudquiz@db:5432/cloudquiz
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:
