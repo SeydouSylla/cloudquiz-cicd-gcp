@@ -6,13 +6,22 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
 const { createApp } = require('../src/app');
+const { createMemoryRepo } = require('../src/db/memory-repo');
 
-const app = createApp();
+const app = createApp({ repo: createMemoryRepo() });
 
 test('GET /health répond 200 avec status ok', async () => {
   const res = await request(app).get('/health');
   assert.equal(res.status, 200);
   assert.equal(res.body.status, 'ok');
+  assert.equal(res.body.db, 'memory');
+});
+
+test('GET /health répond 200 même si la base est en panne', async () => {
+  const brokenRepo = { status: async () => { throw new Error('base injoignable'); } };
+  const res = await request(createApp({ repo: brokenRepo })).get('/health');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.db, 'down');
 });
 
 test('GET /version renvoie le nom, la version, le commit et la révision', async () => {

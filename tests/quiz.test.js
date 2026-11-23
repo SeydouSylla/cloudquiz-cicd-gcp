@@ -4,9 +4,10 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
 const { createApp } = require('../src/app');
+const { createMemoryRepo } = require('../src/db/memory-repo');
 const { questions } = require('../src/questions');
 
-const app = createApp();
+const app = createApp({ repo: createMemoryRepo() });
 
 test('GET /api/topics liste les thèmes avec leur nombre de questions', async () => {
   const res = await request(app).get('/api/topics');

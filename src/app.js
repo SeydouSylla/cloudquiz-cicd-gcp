@@ -1,6 +1,8 @@
 // Définition de l'application Express (routes de l'API + pages web).
 // On ne démarre PAS le serveur ici : server.js s'en charge.
-// Comme ça, les tests peuvent créer l'application sans ouvrir de port réseau.
+// Comme ça, les tests peuvent créer l'application avec un faux dépôt de scores,
+// sans ouvrir de port et sans base de données.
+
 const path = require('path');
 const express = require('express');
 const { topics, questions, countByTopic } = require('./questions');
@@ -8,8 +10,10 @@ const { getVersionInfo } = require('./version');
 
 /**
  * Crée l'application.
+ * @param {object} options
+ * @param {object} options.repo  dépôt des scores (PostgreSQL en production, mémoire en test)
  */
-function createApp() {
+function createApp({ repo }) {
   const app = express();
 
   app.disable('x-powered-by'); // inutile d'annoncer qu'on utilise Express
@@ -18,9 +22,16 @@ function createApp() {
 
   // ---------- Supervision ----------
 
-  // Utilisé par le test de fumée du pipeline : doit répondre 200 dès que le serveur tourne
-  app.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
+  // Utilisé par le test de fumée du pipeline : doit répondre 200 dès que le serveur tourne,
+  // même si la base de données est indisponible (on indique juste son état).
+  app.get('/health', async (req, res) => {
+    let db;
+    try {
+      db = await repo.status();
+    } catch (err) {
+      db = 'down';
+    }
+    res.json({ status: 'ok', db });
   });
 
   // Version, commit et révision : affichés dans le bandeau de déploiement
