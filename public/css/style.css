@@ -164,6 +164,21 @@ body {
 }
 .score-ring span { position: relative; font-size: 1.8rem; font-weight: 800; }
 
+/* ---------- Classement ---------- */
+.rank-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background: #eef1f6;
+  font-weight: 700;
+  font-size: .85rem;
+}
+.rank-1 { background: #fde68a; }
+.rank-2 { background: #e5e7eb; }
+.rank-3 { background: #fed7aa; }
+
 /* ---------- Bandeau de déploiement ---------- */
 .deploy-bar {
   position: fixed;
@@ -181,3 +196,14 @@ body {
   padding: .15rem .65rem;
   white-space: nowrap;
 }
+.dot {
+  display: inline-block;
+  width: .55rem;
+  height: .55rem;
+  border-radius: 50%;
+  margin-right: .35rem;
+  background: #94a3b8;
+}
+.dot.up { background: #22c55e; }
+.dot.down { background: #ef4444; }
+.dot.memory { background: #f59e0b; }

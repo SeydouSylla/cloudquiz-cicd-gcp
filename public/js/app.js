@@ -1,6 +1,7 @@
 // Logique de l'interface CloudQuiz (JavaScript sans framework).
 // L'interface parle uniquement à notre API : elle ne connaît jamais les bonnes réponses à l'avance.
 
+const PSEUDO_REGEX = /^[A-Za-z0-9_-]{2,20}$/;
 const LETTERS = ['A', 'B', 'C', 'D'];
 
 // État du quiz en cours
@@ -29,6 +30,14 @@ async function api(url, options = {}) {
   return data;
 }
 
+// Le pseudo est mémorisé dans le navigateur pour ne pas le retaper à chaque fois
+function savePseudo(value) {
+  try { localStorage.setItem('cloudquiz-pseudo', value); } catch (e) { /* stockage indisponible */ }
+}
+function loadPseudo() {
+  try { return localStorage.getItem('cloudquiz-pseudo') || ''; } catch (e) { return ''; }
+}
+
 // ---------- Navigation entre les vues ----------
 
 function showView(name) {
@@ -37,6 +46,7 @@ function showView(name) {
   document.querySelectorAll('.navbar .nav-link').forEach((link) => {
     link.classList.toggle('active', link.dataset.view === name);
   });
+  if (name === 'leaderboard') loadLeaderboard();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -62,6 +72,14 @@ async function loadDeployInfo() {
     $('depVersion').textContent = 'inconnue';
   }
 
+  try {
+    const health = await api('/health');
+    const labels = { up: 'connectée', down: 'injoignable', memory: 'en mémoire' };
+    $('dbState').textContent = labels[health.db] || health.db;
+    $('dbDot').className = `dot ${health.db}`;
+  } catch (err) {
+    $('dbState').textContent = 'inconnue';
+  }
 }
 
 // ---------- Accueil : thèmes ----------
@@ -78,7 +96,7 @@ async function loadTopics() {
   container.innerHTML = '';
   state.topics.forEach((topic) => {
     const col = document.createElement('div');
-    col.className = 'col-md-6 col-lg-4';
+    col.className = 'col-md-6';
     col.innerHTML = `
       <button type="button" class="card topic-card shadow-sm h-100 p-0">
         <div class="card-body p-4">
@@ -100,9 +118,22 @@ async function loadTopics() {
   });
 }
 
+function checkPseudo() {
+  const input = $('pseudo');
+  const value = input.value.trim();
+  const valid = PSEUDO_REGEX.test(value);
+  input.classList.toggle('is-invalid', !valid);
+  if (valid) savePseudo(value);
+  return valid ? value : null;
+}
+
 // ---------- Quiz ----------
 
 async function startQuiz(topic) {
+  if (!checkPseudo()) {
+    $('pseudo').focus();
+    return;
+  }
   try {
     state.questions = await api(`/api/questions?topic=${encodeURIComponent(topic.id)}`);
   } catch (err) {
@@ -188,7 +219,7 @@ $('nextBtn').addEventListener('click', () => {
 $('quitBtn').addEventListener('click', () => showView('home'));
 $('replayBtn').addEventListener('click', () => startQuiz(state.topic));
 
-// ---------- Résultat ----------
+// ---------- Résultat et enregistrement du score ----------
 
 async function finishQuiz() {
   const total = state.questions.length;
@@ -200,11 +231,83 @@ async function finishQuiz() {
   $('scoreRing').style.setProperty('--pct', percent);
   $('resultTitle').textContent = percent >= 75 ? 'Excellent !' : percent >= 50 ? 'Pas mal !' : 'Continuez à réviser !';
   $('resultDetail').textContent = `${percent} % de bonnes réponses sur le thème ${state.topic.name}, en ${durationSec} s.`;
+  $('saveStatus').className = 'small mb-4 text-muted';
+  $('saveStatus').textContent = 'Enregistrement du score…';
   showView('result');
 
+  try {
+    await api('/api/scores', {
+      method: 'POST',
+      body: JSON.stringify({
+        pseudo: checkPseudo(),
+        topic: state.topic.id,
+        mode: 'libre',
+        score: state.score,
+        total,
+        durationSec,
+      }),
+    });
+    $('saveStatus').className = 'small mb-4 text-success';
+    $('saveStatus').innerHTML = '<i class="bi bi-check-circle me-1"></i>Score enregistré dans le classement.';
+  } catch (err) {
+    $('saveStatus').className = 'small mb-4 text-danger';
+    $('saveStatus').textContent = `Score non enregistré : ${err.message}`;
+  }
 }
+
+// ---------- Classement ----------
+
+function formatDuration(sec) {
+  if (sec === null || sec === undefined) return '—';
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return m > 0 ? `${m} min ${s} s` : `${s} s`;
+}
+
+async function loadLeaderboard() {
+  const body = $('boardBody');
+  body.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Chargement…</td></tr>';
+
+  let rows;
+  try {
+    rows = await api('/api/leaderboard?mode=libre');
+  } catch (err) {
+    body.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4"></td></tr>';
+    body.querySelector('td').textContent = `Classement indisponible : ${err.message}`;
+    return;
+  }
+
+  if (rows.length === 0) {
+    body.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Aucun score pour l\'instant. Lancez un quiz !</td></tr>';
+    return;
+  }
+
+  const topicNames = Object.fromEntries(state.topics.map((t) => [t.id, t.name]));
+  body.innerHTML = '';
+  rows.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="ps-4"><span class="rank-badge rank-${i + 1}">${i + 1}</span></td>
+      <td class="fw-semibold"></td>
+      <td></td>
+      <td><span class="fw-semibold"></span> <span class="text-muted small"></span></td>
+      <td class="d-none d-md-table-cell">${formatDuration(row.durationSec)}</td>
+      <td class="d-none d-md-table-cell pe-4 text-muted small">${new Date(row.createdAt).toLocaleDateString('fr-FR')}</td>`;
+    const cells = tr.querySelectorAll('td');
+    // Le pseudo vient des utilisateurs : on l'insère avec textContent (protection XSS)
+    cells[1].textContent = row.pseudo;
+    cells[2].textContent = topicNames[row.topic] || row.topic;
+    cells[3].querySelector('.fw-semibold').textContent = `${row.score}/${row.total}`;
+    cells[3].querySelector('.small').textContent = `(${Math.round((row.score / row.total) * 100)} %)`;
+    body.appendChild(tr);
+  });
+}
+
+$('refreshBoard').addEventListener('click', loadLeaderboard);
 
 // ---------- Démarrage ----------
 
+$('pseudo').value = loadPseudo();
+$('pseudo').addEventListener('input', () => $('pseudo').classList.remove('is-invalid'));
 loadDeployInfo();
 loadTopics();

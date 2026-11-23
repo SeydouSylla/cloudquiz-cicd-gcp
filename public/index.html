@@ -26,6 +26,7 @@
       </a>
       <ul class="navbar-nav ms-auto gap-1">
         <li class="nav-item"><a class="nav-link active" href="#" data-view="home"><i class="bi bi-house-door me-1"></i><span class="d-none d-sm-inline">Accueil</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-view="leaderboard"><i class="bi bi-trophy me-1"></i><span class="d-none d-sm-inline">Classement</span></a></li>
       </ul>
     </div>
   </nav>
@@ -37,13 +38,28 @@
       <div class="hero mb-4 mb-md-5">
         <p class="hero-kicker"><i class="bi bi-mortarboard me-1"></i>ING3 ICC · Cloud Infrastructures</p>
         <h1 class="hero-title">Révisez le cours, <span class="text-accent">question par question</span>.</h1>
-        <p class="hero-text">Choisissez un thème. Chaque réponse est corrigée immédiatement, avec une explication, et votre score s'affiche à la fin.</p>
+        <p class="hero-text">Choisissez un pseudo et un thème. Chaque réponse est corrigée immédiatement, avec une explication. Votre score rejoint ensuite le classement.</p>
       </div>
 
-      <h2 class="h6 text-uppercase text-muted fw-semibold mb-3">Choisissez un thème</h2>
-      <div class="row g-3" id="topics">
-        <!-- rempli par js/app.js -->
-        <div class="col-12 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Chargement des thèmes…</div>
+      <div class="row g-4">
+        <div class="col-lg-4">
+          <div class="card shadow-sm h-100">
+            <div class="card-body p-4">
+              <h2 class="h6 text-uppercase text-muted fw-semibold mb-3">1. Votre pseudo</h2>
+              <label for="pseudo" class="form-label">Pseudo affiché dans le classement</label>
+              <input type="text" class="form-control form-control-lg" id="pseudo" maxlength="20" placeholder="ex. alice_92" autocomplete="nickname">
+              <div class="form-text" id="pseudoHelp">2 à 20 caractères : lettres, chiffres, _ ou -</div>
+              <div class="invalid-feedback">Pseudo invalide : 2 à 20 caractères (lettres, chiffres, _ ou -).</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-8">
+          <h2 class="h6 text-uppercase text-muted fw-semibold mb-3">2. Choisissez un thème</h2>
+          <div class="row g-3" id="topics">
+            <!-- rempli par js/app.js -->
+            <div class="col-12 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Chargement des thèmes…</div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -81,16 +97,40 @@
           <div class="card-body p-4 p-md-5">
             <div class="score-ring mx-auto mb-3" id="scoreRing"><span id="scoreValue">0/0</span></div>
             <h2 class="h3 fw-bold" id="resultTitle">Bravo !</h2>
-            <p class="text-muted mb-4" id="resultDetail"></p>
+            <p class="text-muted mb-1" id="resultDetail"></p>
+            <p class="small mb-4" id="saveStatus"></p>
             <div class="d-flex flex-wrap justify-content-center gap-2">
               <button class="btn btn-accent" id="replayBtn" type="button"><i class="bi bi-arrow-repeat me-1"></i>Rejouer ce thème</button>
               <button class="btn btn-outline-secondary" type="button" data-view="home"><i class="bi bi-grid me-1"></i>Autre thème</button>
+              <button class="btn btn-outline-secondary" type="button" data-view="leaderboard"><i class="bi bi-trophy me-1"></i>Classement</button>
             </div>
           </div>
         </div>
       </div>
     </section>
 
+    <!-- ===== Vue : classement ===== -->
+    <section id="view-leaderboard" class="view d-none">
+      <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-4">
+        <div>
+          <h1 class="h2 fw-bold mb-1"><i class="bi bi-trophy text-accent me-2"></i>Classement</h1>
+          <p class="text-muted mb-0">Les 10 meilleurs scores, enregistrés dans PostgreSQL.</p>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" id="refreshBoard" type="button"><i class="bi bi-arrow-clockwise me-1"></i>Actualiser</button>
+      </div>
+      <div class="card shadow-sm">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr><th class="ps-4">#</th><th>Pseudo</th><th>Thème</th><th>Score</th><th class="d-none d-md-table-cell">Durée</th><th class="d-none d-md-table-cell pe-4">Date</th></tr>
+            </thead>
+            <tbody id="boardBody">
+              <tr><td colspan="6" class="text-center text-muted py-4">Chargement…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- Bandeau de déploiement : la preuve visuelle du CI/CD -->
@@ -101,6 +141,7 @@
       <span class="deploy-chip">commit <b id="depCommit">…</b></span>
       <span class="deploy-chip">révision <b id="depRevision">…</b></span>
       <span class="deploy-chip d-none d-md-inline">build <b id="depTime">…</b></span>
+      <span class="ms-auto deploy-chip" id="dbChip"><span class="dot" id="dbDot"></span>base <b id="dbState">…</b></span>
     </div>
   </footer>
 

@@ -1,6 +1,6 @@
 {
   "name": "cloudquiz",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Quiz de révision du cours Cloud Infrastructures, déployé automatiquement sur Cloud Run",
   "main": "src/server.js",
   "private": true,
@@ -13,7 +13,8 @@
     "node": ">=22"
   },
   "dependencies": {
-    "express": "^4.22.3"
+    "express": "^4.22.3",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "supertest": "^7.3.2"
