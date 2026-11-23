@@ -8,6 +8,15 @@ const express = require('express');
 const { topics, questions, countByTopic } = require('./questions');
 const { getVersionInfo } = require('./version');
 
+// Règles de validation, regroupées ici pour être faciles à retrouver
+const PSEUDO_REGEX = /^[A-Za-z0-9_-]{2,20}$/;
+const MODES = ['libre'];
+const MAX_QUESTIONS = 50;
+
+function isInteger(value, min, max) {
+  return Number.isInteger(value) && value >= min && value <= max;
+}
+
 /**
  * Crée l'application.
  * @param {object} options
@@ -78,6 +87,61 @@ function createApp({ repo }) {
       answer: q.answer,
       explanation: q.explanation,
     });
+  });
+
+  // ---------- Scores (version 1.1.0) ----------
+
+  app.post('/api/scores', async (req, res) => {
+    const { pseudo, topic, mode = 'libre', score, total, durationSec } = req.body || {};
+
+    // Validation des données reçues : on ne fait jamais confiance au navigateur
+    if (typeof pseudo !== 'string' || !PSEUDO_REGEX.test(pseudo)) {
+      return res.status(400).json({ error: 'Pseudo invalide : 2 à 20 caractères (lettres, chiffres, _ ou -)' });
+    }
+    if (!topics.some((t) => t.id === topic)) {
+      return res.status(400).json({ error: 'Thème invalide' });
+    }
+    if (!MODES.includes(mode)) {
+      return res.status(400).json({ error: 'Mode invalide' });
+    }
+    if (!isInteger(total, 1, MAX_QUESTIONS) || !isInteger(score, 0, total)) {
+      return res.status(400).json({ error: 'Score invalide' });
+    }
+    if (durationSec !== undefined && !isInteger(durationSec, 0, 36000)) {
+      return res.status(400).json({ error: 'Durée invalide' });
+    }
+    // Limite connue : le score est calculé par le navigateur, un utilisateur malin
+    // pourrait envoyer un faux score. Acceptable pour un quiz de révision.
+
+    try {
+      const saved = await repo.addScore({
+        pseudo,
+        topic,
+        mode,
+        score,
+        total,
+        durationSec: durationSec ?? null,
+        appVersion: getVersionInfo().version,
+      });
+      res.status(201).json({ saved: true, id: saved.id });
+    } catch (err) {
+      console.error('Erreur en enregistrant le score :', err.message);
+      res.status(503).json({ error: 'Base de données indisponible, le score n\'a pas été enregistré' });
+    }
+  });
+
+  app.get('/api/leaderboard', async (req, res) => {
+    const mode = req.query.mode || 'libre';
+    if (!MODES.includes(mode)) {
+      return res.status(400).json({ error: 'Mode invalide' });
+    }
+    try {
+      const rows = await repo.topScores(mode, 10);
+      res.json(rows);
+    } catch (err) {
+      console.error('Erreur en lisant le classement :', err.message);
+      res.status(503).json({ error: 'Base de données indisponible' });
+    }
   });
 
   // ---------- Erreurs ----------
