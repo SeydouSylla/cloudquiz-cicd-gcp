@@ -72,3 +72,60 @@ Droits de l'équipe sur le projet : Seydou est Propriétaire (il doit relier Git
 ![Service Cloud Run cloudquiz](screenshots/gcp-04-cloud-run.png)
 
 ![Page « It's running! » en HTTPS](screenshots/gcp-05-cloud-run-https.png)
+
+## 6. Cloud SQL PostgreSQL et secret
+
+### Instance
+
+| Paramètre | Valeur | Raison |
+|---|---|---|
+| Instance | `cloudquiz-db` | Nom attendu par le pipeline |
+| Version | PostgreSQL 16 | Version demandée par l'application |
+| Édition | Enterprise (pas Enterprise Plus) | Beaucoup moins chère |
+| Machine | `db-f1-micro` (cœur partagé) | Plus petite configuration disponible |
+| Disponibilité | Une seule zone (`europe-west1-b`), haute disponibilité désactivée | Pas de copie dans une seconde zone : coût divisé par deux |
+| Stockage | 10 Go | Minimum |
+| Sauvegardes automatiques | Désactivées | Choix assumé : données non critiques (scores de quiz), stockage supplémentaire facturé |
+| Réseaux autorisés | Aucun | L'application passe par le connecteur Cloud SQL, contrôlé par IAM (rôle `cloudsql.client` de `cloudquiz-run`) |
+
+Nom de connexion : `cloudquiz-cicd-2617:europe-west1:cloudquiz-db`.
+
+### Base, utilisateur et secret
+
+- Base `cloudquiz`, utilisateur `cloudquiz_app`.
+- Le mot de passe est généré dans Cloud Shell par `openssl rand -hex 24` (hexadécimal : aucun caractère spécial qui casserait l'URL). Il n'est **jamais affiché, écrit dans un fichier ou commité** : il n'existe que dans le secret.
+- Le secret `database-url` (Secret Manager, réplication automatique) contient l'URL de connexion complète, au format `postgres://cloudquiz_app:<mot de passe>@/cloudquiz?host=/cloudsql/<nom de connexion>`. Cloud Run le lit **par son nom** : personne n'a besoin de connaître sa valeur.
+
+Vérifications :
+
+| Commande | Résultat |
+|---|---|
+| `gcloud sql instances describe cloudquiz-db --format="value(databaseVersion,settings.edition,settings.tier)"` | `POSTGRES_16  ENTERPRISE  db-f1-micro` |
+| `gcloud sql databases list --instance=cloudquiz-db` | contient `cloudquiz` |
+| `gcloud sql users list --instance=cloudquiz-db` | contient `cloudquiz_app` |
+| `gcloud secrets versions list database-url` | une version `enabled` |
+
+### Arrêt hors travail
+
+Cloud SQL est le seul service facturé en continu, même sans trafic. L'instance est donc **arrêtée quand personne ne travaille** et rallumée avant chaque séance, démonstration ou inspection. L'équipe est prévenue à chaque arrêt ou redémarrage. L'arrêt ne supprime ni la base, ni l'utilisateur, ni le secret.
+
+```bash
+gcloud sql instances patch cloudquiz-db --activation-policy=NEVER    # arrêter
+gcloud sql instances patch cloudquiz-db --activation-policy=ALWAYS   # rallumer
+```
+
+Tout membre Propriétaire ou Éditeur du projet peut lancer ces commandes.
+
+![Instance Cloud SQL cloudquiz-db (arrêtée)](screenshots/gcp-06-cloud-sql.png)
+
+## 7. Relancer l'infrastructure
+
+Le script est idempotent : il peut être relancé sans danger, les ressources déjà présentes sont conservées.
+
+```bash
+# Dans Cloud Shell, à la racine du dépôt, sur un projet déjà relié à la facturation
+bash scripts/setup-gcp.sh <ID_DU_PROJET> A   # API, registre, comptes de service, Cloud Run
+bash scripts/setup-gcp.sh <ID_DU_PROJET> B   # Cloud SQL, base, utilisateur, secret
+```
+
+Le budget et les droits de l'équipe se configurent dans la console (voir sections 1 et 4).
