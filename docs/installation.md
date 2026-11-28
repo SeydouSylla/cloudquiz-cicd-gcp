@@ -57,12 +57,21 @@ docker compose up --build
 | `GET /version` | Version, commit, révision, date du build |
 | `GET /api/topics` | Liste des thèmes |
 | `GET /api/questions?topic=docker` | Questions d'un thème, sans les réponses |
+| `GET /api/exam` | Mode examen (2.0.0) : 10 questions au hasard parmi tous les thèmes, sans les réponses, et la durée (`300` s) |
 | `POST /api/answers` | Corrige une réponse : `{ "id": "docker-1", "choice": 0 }` |
-| `POST /api/scores` | Enregistre un score : `{ "pseudo", "topic", "mode", "score", "total", "durationSec" }` |
-| `GET /api/leaderboard` | Les 10 meilleurs scores |
+| `POST /api/scores` | Enregistre un score : `{ "pseudo", "topic", "mode", "score", "total", "durationSec" }`. Mode `libre` : un thème ; mode `examen` : thème `all` et 10 questions |
+| `GET /api/leaderboard?mode=libre` | Les 10 meilleurs scores du mode libre (`mode=examen` pour les examens) |
 
 ## Choix techniques
 
 - **Pas de framework front-end** : HTML, CSS, JavaScript et Bootstrap chargé depuis un CDN, donc aucune étape de compilation qui pourrait casser le pipeline.
 - **Dépôt de scores injecté** dans l'application (`createApp({ repo })`) : PostgreSQL en production, mémoire dans les tests. Les tests ne touchent jamais la vraie base.
 - **L'application démarre même si la base est injoignable** : le quiz fonctionne, seule la sauvegarde des scores renvoie une erreur 503. Le test de fumée du pipeline (`/health`) reste vert.
+
+## Versions
+
+| Version | Contenu |
+|---|---|
+| 1.0.0 | Quiz sur 3 thèmes, interface et bandeau de déploiement (accent bleu) |
+| 1.1.0 | Pseudo, scores dans PostgreSQL, classement |
+| 2.0.0 | Mode examen chronométré (10 questions, 5 minutes), thèmes Kickstart et Google Cloud, classement par mode, accent vert |

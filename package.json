@@ -1,6 +1,6 @@
 {
   "name": "cloudquiz",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "Quiz de révision du cours Cloud Infrastructures, déployé automatiquement sur Cloud Run",
   "main": "src/server.js",
   "private": true,
