@@ -38,7 +38,7 @@
       <div class="hero mb-4 mb-md-5">
         <p class="hero-kicker"><i class="bi bi-mortarboard me-1"></i>ING3 ICC · Cloud Infrastructures</p>
         <h1 class="hero-title">Révisez le cours, <span class="text-accent">question par question</span>.</h1>
-        <p class="hero-text">Choisissez un pseudo et un thème. Chaque réponse est corrigée immédiatement, avec une explication. Votre score rejoint ensuite le classement.</p>
+        <p class="hero-text">Choisissez un pseudo, puis un thème ou le mode examen. Chaque réponse est corrigée immédiatement, avec une explication. Votre score rejoint ensuite le classement.</p>
       </div>
 
       <div class="row g-4">
@@ -54,7 +54,20 @@
           </div>
         </div>
         <div class="col-lg-8">
-          <h2 class="h6 text-uppercase text-muted fw-semibold mb-3">2. Choisissez un thème</h2>
+          <h2 class="h6 text-uppercase text-muted fw-semibold mb-3">2. Passez l'examen…</h2>
+          <!-- Mode examen (version 2.0.0) -->
+          <div class="card exam-card shadow-sm mb-4">
+            <div class="card-body p-4 d-flex flex-wrap align-items-center gap-3">
+              <span class="topic-icon"><i class="bi bi-stopwatch"></i></span>
+              <div class="flex-grow-1">
+                <span class="badge text-bg-accent-soft mb-1">Nouveau · v2.0.0</span>
+                <h3 class="h5 fw-semibold mb-1">Mode examen</h3>
+                <p class="text-muted small mb-0">10 questions tirées au hasard parmi tous les thèmes, 5 minutes chrono. Le score rejoint le classement des examens.</p>
+              </div>
+              <button class="btn btn-accent btn-lg" id="examBtn" type="button"><i class="bi bi-play-fill me-1"></i>Lancer l'examen</button>
+            </div>
+          </div>
+          <h2 class="h6 text-uppercase text-muted fw-semibold mb-3">… ou révisez un thème</h2>
           <div class="row g-3" id="topics">
             <!-- rempli par js/app.js -->
             <div class="col-12 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Chargement des thèmes…</div>
@@ -68,7 +81,10 @@
       <div class="quiz-wrapper mx-auto">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <span class="badge text-bg-accent-soft" id="quizTopic">Thème</span>
-          <span class="text-muted small" id="quizCounter">Question 1 / 8</span>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge timer-badge d-none" id="quizTimer" aria-live="polite"><i class="bi bi-stopwatch me-1"></i><span id="timerValue">5:00</span></span>
+            <span class="text-muted small" id="quizCounter">Question 1 / 8</span>
+          </div>
         </div>
         <div class="progress mb-4" role="progressbar" aria-label="Progression du quiz" style="height: 6px">
           <div class="progress-bar bg-accent" id="quizProgress" style="width: 0%"></div>
@@ -116,7 +132,13 @@
           <h1 class="h2 fw-bold mb-1"><i class="bi bi-trophy text-accent me-2"></i>Classement</h1>
           <p class="text-muted mb-0">Les 10 meilleurs scores, enregistrés dans PostgreSQL.</p>
         </div>
-        <button class="btn btn-outline-secondary btn-sm" id="refreshBoard" type="button"><i class="bi bi-arrow-clockwise me-1"></i>Actualiser</button>
+        <div class="d-flex flex-wrap gap-2">
+          <div class="btn-group btn-group-sm board-modes" role="group" aria-label="Mode du classement">
+            <button type="button" class="btn btn-outline-secondary active" data-board="libre" aria-pressed="true">Mode libre</button>
+            <button type="button" class="btn btn-outline-secondary" data-board="examen" aria-pressed="false">Mode examen</button>
+          </div>
+          <button class="btn btn-outline-secondary btn-sm" id="refreshBoard" type="button"><i class="bi bi-arrow-clockwise me-1"></i>Actualiser</button>
+        </div>
       </div>
       <div class="card shadow-sm">
         <div class="table-responsive">
