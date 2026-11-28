@@ -107,3 +107,9 @@ gcloud run revisions list --service=cloudquiz --region=europe-west1
 ```
 
 Le commit renvoyé par `/version` et affiché dans le bandeau de l'application doit être celui du dernier build vert.
+
+## 8. Preuve : application connectée à Cloud SQL
+
+Après la fusion de la pull request #7, le pipeline a déployé la révision `cloudquiz-00004-xns` (commit `3473b73`) reliée à Cloud SQL. `/health` renvoie `{"status":"ok","db":"up"}`, le bandeau affiche « base connectée » et le score est enregistré dans PostgreSQL.
+
+![Application connectée à Cloud SQL, classement enregistré](screenshots/ci-05-base-connectee.png)
