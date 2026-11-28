@@ -1,0 +1,97 @@
+# Pipeline CI/CD de CloudQuiz (Cloud Build)
+#
+# Déclenché automatiquement à chaque push sur la branche main (fusion d'une pull request).
+# Chaque étape tourne dans son propre conteneur. Si une étape échoue, les suivantes
+# ne s'exécutent pas : un test en échec empêche donc tout déploiement.
+#
+#   install -> test -> build -> push -> deploy -> smoke-test
+
+steps:
+  # 1. Installer les dépendances exactement comme dans package-lock.json
+  - id: install
+    name: node:22-alpine
+    entrypoint: npm
+    args: ['ci']
+
+  # 2. Lancer les tests automatisés (22 tests). Un échec arrête le pipeline ici.
+  - id: test
+    name: node:22-alpine
+    entrypoint: npm
+    args: ['test']
+
+  # 3. Construire l'image Docker, étiquetée avec le commit court ($SHORT_SHA).
+  #    Le commit et la date du build sont passés à l'image : le bandeau de l'application les affiche.
+  #    ($$ empêche Cloud Build de remplacer la commande date : c'est bash qui l'exécute.)
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker build \
+          --build-arg COMMIT_SHA=$SHORT_SHA \
+          --build-arg BUILD_TIME=$$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+          -t ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA \
+          .
+
+  # 4. Publier l'image dans Artifact Registry
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA']
+
+  # 5. Déployer cette image sur Cloud Run : une nouvelle révision reçoit 100 % du trafic.
+  #    L'application tourne avec le compte cloudquiz-run (moindre privilège).
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA
+      - --region=${_REGION}
+      - --service-account=${_RUN_SA}@$PROJECT_ID.iam.gserviceaccount.com
+      - --allow-unauthenticated
+      - --min-instances=0
+      - --max-instances=2
+      - --quiet
+
+  # 6. Test de fumée : la version réellement en ligne doit répondre
+  #    et afficher le commit qui vient d'être déployé.
+  - id: smoke-test
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        URL=$$(gcloud run services describe ${_SERVICE} --region=${_REGION} --format='value(status.url)')
+        echo "Service en ligne : $$URL"
+        for i in 1 2 3 4 5; do
+          if curl -fsS "$$URL/health" && curl -fsS "$$URL/version" | grep -q "$SHORT_SHA"; then
+            echo
+            echo "OK : la version $SHORT_SHA répond"
+            exit 0
+          fi
+          echo "Tentative $$i échouée, nouvel essai dans 5 s"
+          sleep 5
+        done
+        echo "ÉCHEC : la version $SHORT_SHA ne répond pas"
+        exit 1
+
+# Valeurs utilisées dans les étapes ci-dessus (les mêmes noms que dans docs/gcp-setup.md)
+substitutions:
+  _REGION: europe-west1
+  _REPO: cloudquiz
+  _SERVICE: cloudquiz
+  _RUN_SA: cloudquiz-run
+
+# Le compte de service du build (cloudbuild-deployer, 4 rôles seulement) est choisi
+# dans le déclencheur Cloud Build, pas dans ce fichier.
+options:
+  # Obligatoire quand le build utilise un compte de service choisi par nous
+  logging: CLOUD_LOGGING_ONLY
+  # Une substitution définie mais pas utilisée ne doit pas faire échouer le build
+  substitution_option: ALLOW_LOOSE
+
+# Arrête le build s'il dure plus de 15 minutes (évite une consommation inutile)
+timeout: 900s
