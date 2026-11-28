@@ -40,7 +40,8 @@ steps:
     args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA']
 
   # 5. Déployer cette image sur Cloud Run : une nouvelle révision reçoit 100 % du trafic.
-  #    L'application tourne avec le compte cloudquiz-run (moindre privilège).
+  #    L'application tourne avec le compte cloudquiz-run (moindre privilège),
+  #    se connecte à Cloud SQL et lit l'URL de la base dans Secret Manager.
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: gcloud
@@ -51,6 +52,8 @@ steps:
       - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA
       - --region=${_REGION}
       - --service-account=${_RUN_SA}@$PROJECT_ID.iam.gserviceaccount.com
+      - --add-cloudsql-instances=$PROJECT_ID:${_REGION}:${_SQL_INSTANCE}
+      - --set-secrets=DATABASE_URL=${_DB_SECRET}:latest
       - --allow-unauthenticated
       - --min-instances=0
       - --max-instances=2
@@ -84,6 +87,8 @@ substitutions:
   _REPO: cloudquiz
   _SERVICE: cloudquiz
   _RUN_SA: cloudquiz-run
+  _SQL_INSTANCE: cloudquiz-db
+  _DB_SECRET: database-url
 
 # Le compte de service du build (cloudbuild-deployer, 4 rôles seulement) est choisi
 # dans le déclencheur Cloud Build, pas dans ce fichier.
