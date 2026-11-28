@@ -1,0 +1,57 @@
+# Pipeline CI/CD de CloudQuiz (Cloud Build)
+#
+# Déclenché automatiquement à chaque push sur la branche main (fusion d'une pull request).
+# Chaque étape tourne dans son propre conteneur. Si une étape échoue, les suivantes
+# ne s'exécutent pas : un test en échec empêche donc tout déploiement.
+#
+#   install -> test -> build -> push   (le déploiement arrive au commit suivant)
+
+steps:
+  # 1. Installer les dépendances exactement comme dans package-lock.json
+  - id: install
+    name: node:22-alpine
+    entrypoint: npm
+    args: ['ci']
+
+  # 2. Lancer les tests automatisés (22 tests). Un échec arrête le pipeline ici.
+  - id: test
+    name: node:22-alpine
+    entrypoint: npm
+    args: ['test']
+
+  # 3. Construire l'image Docker, étiquetée avec le commit court ($SHORT_SHA).
+  #    Le commit et la date du build sont passés à l'image : le bandeau de l'application les affiche.
+  #    ($$ empêche Cloud Build de remplacer la commande date : c'est bash qui l'exécute.)
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker build \
+          --build-arg COMMIT_SHA=$SHORT_SHA \
+          --build-arg BUILD_TIME=$$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+          -t ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA \
+          .
+
+  # 4. Publier l'image dans Artifact Registry
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA']
+
+# Valeurs utilisées dans les étapes ci-dessus (les mêmes noms que dans docs/gcp-setup.md)
+substitutions:
+  _REGION: europe-west1
+  _REPO: cloudquiz
+  _SERVICE: cloudquiz
+
+# Le compte de service du build (cloudbuild-deployer, 4 rôles seulement) est choisi
+# dans le déclencheur Cloud Build, pas dans ce fichier.
+options:
+  # Obligatoire quand le build utilise un compte de service choisi par nous
+  logging: CLOUD_LOGGING_ONLY
+  # Une substitution définie mais pas utilisée ne doit pas faire échouer le build
+  substitution_option: ALLOW_LOOSE
+
+# Arrête le build s'il dure plus de 15 minutes (évite une consommation inutile)
+timeout: 900s
