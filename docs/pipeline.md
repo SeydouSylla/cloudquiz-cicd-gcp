@@ -51,11 +51,13 @@ europe-west1-docker.pkg.dev/cloudquiz-cicd-2617/cloudquiz/cloudquiz:e0956f7
 | Option de `gcloud run deploy` | Rôle |
 |---|---|
 | `--service-account=cloudquiz-run@…` | L'application tourne avec un compte qui n'a que 2 rôles (moindre privilège) |
+| `--add-cloudsql-instances=…:cloudquiz-db` | Relie le service à l'instance Cloud SQL par le connecteur intégré (socket `/cloudsql/…`) |
+| `--set-secrets=DATABASE_URL=database-url:latest` | Donne l'URL de la base à l'application, lue dans Secret Manager : **aucun mot de passe dans le code ni dans le pipeline** |
 | `--allow-unauthenticated` | Application publique, accessible en HTTPS |
 | `--min-instances=0` | Aucune instance (donc aucun coût) quand personne n'utilise l'application |
 | `--max-instances=2` | Coût plafonné en cas de pic de trafic |
 
-Pour l'instant, le service n'est pas relié à Cloud SQL : sans `DATABASE_URL`, l'application garde les scores en mémoire. La connexion à la base est ajoutée dans une étape suivante. L'application démarre même si la base est injoignable : le déploiement et le test de fumée ne dépendent jamais de la base.
+L'application démarre même si la base est injoignable (par exemple instance Cloud SQL arrêtée hors travail) : le quiz fonctionne, seule la sauvegarde des scores est indisponible. Le déploiement et le test de fumée ne dépendent donc jamais de la base.
 
 ## 4. Le déclencheur
 
@@ -79,6 +81,7 @@ Le travail se fait sur des branches et passe par des pull requests relues : `mai
 | `_REGION` | `cloudbuild.yaml` | `europe-west1` |
 | `_REPO`, `_SERVICE` | `cloudbuild.yaml` | `cloudquiz` |
 | `_RUN_SA` | `cloudbuild.yaml` | `cloudquiz-run` |
+| `_SQL_INSTANCE`, `_DB_SECRET` | `cloudbuild.yaml` | `cloudquiz-db`, `database-url` |
 
 Dans les scripts `bash` du fichier, une variable du shell s'écrit `$$URL` : le double `$` empêche Cloud Build de la remplacer avant l'exécution.
 
