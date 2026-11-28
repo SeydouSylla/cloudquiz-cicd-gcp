@@ -8,11 +8,17 @@ const LETTERS = ['A', 'B', 'C', 'D'];
 const state = {
   topics: [],
   topic: null,
+  mode: 'libre',       // 'libre' (un thème) ou 'examen' (version 2.0.0)
   questions: [],
   index: 0,
   score: 0,
   startedAt: 0,
+  deadline: 0,         // fin du chrono en mode examen
+  timerId: null,
+  boardMode: 'libre',  // classement affiché
 };
+
+const EXAM_TOPIC = { id: 'all', name: 'Examen (tous thèmes)' };
 
 // Raccourci pour récupérer un élément par son id
 const $ = (id) => document.getElementById(id);
@@ -140,13 +146,63 @@ async function startQuiz(topic) {
     alert(`Impossible de charger les questions : ${err.message}`);
     return;
   }
+  state.mode = 'libre';
   state.topic = topic;
+  beginQuiz();
+}
+
+// Mode examen : 10 questions de tous les thèmes, avec un chrono
+async function startExam() {
+  if (!checkPseudo()) {
+    $('pseudo').focus();
+    return;
+  }
+  let exam;
+  try {
+    exam = await api('/api/exam');
+  } catch (err) {
+    alert(`Impossible de charger l'examen : ${err.message}`);
+    return;
+  }
+  state.questions = exam.questions;
+  state.mode = 'examen';
+  state.topic = EXAM_TOPIC;
+  beginQuiz();
+  startTimer(exam.durationSec);
+}
+
+function beginQuiz() {
+  stopTimer();
   state.index = 0;
   state.score = 0;
   state.startedAt = Date.now();
-  $('quizTopic').textContent = topic.name;
+  $('quizTopic').textContent = state.topic.name;
+  $('quizTimer').classList.add('d-none');
   showView('quiz');
   showQuestion();
+}
+
+// ---------- Chrono du mode examen ----------
+
+function startTimer(durationSec) {
+  state.deadline = Date.now() + durationSec * 1000;
+  $('quizTimer').classList.remove('d-none', 'is-urgent');
+  updateTimer();
+  state.timerId = setInterval(updateTimer, 250);
+}
+
+function stopTimer() {
+  clearInterval(state.timerId);
+  state.timerId = null;
+}
+
+function updateTimer() {
+  const left = Math.max(0, Math.ceil((state.deadline - Date.now()) / 1000));
+  $('timerValue').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  $('quizTimer').classList.toggle('is-urgent', left <= 30);
+  if (left === 0) {
+    finishQuiz(true); // temps écoulé : les questions restantes comptent comme fausses
+  }
 }
 
 function showQuestion() {
@@ -156,6 +212,9 @@ function showQuestion() {
   $('quizCounter').textContent = `Question ${state.index + 1} / ${total}`;
   $('quizProgress').style.width = `${(state.index / total) * 100}%`;
   $('questionText').textContent = q.question;
+  if (state.mode === 'examen') {
+    $('quizTopic').textContent = `Examen · ${topicName(q.topic)}`;
+  }
   $('feedback').className = 'alert mt-4 mb-0 d-none';
   $('nextBtn').classList.add('d-none');
 
@@ -216,21 +275,35 @@ $('nextBtn').addEventListener('click', () => {
   }
 });
 
-$('quitBtn').addEventListener('click', () => showView('home'));
-$('replayBtn').addEventListener('click', () => startQuiz(state.topic));
+$('quitBtn').addEventListener('click', () => {
+  stopTimer();
+  showView('home');
+});
+$('replayBtn').addEventListener('click', () => (state.mode === 'examen' ? startExam() : startQuiz(state.topic)));
+$('examBtn').addEventListener('click', startExam);
 
 // ---------- Résultat et enregistrement du score ----------
 
-async function finishQuiz() {
+async function finishQuiz(timeUp = false) {
+  if (state.mode === 'examen' && state.timerId === null && !timeUp) {
+    return; // déjà terminé (par exemple par la fin du chrono)
+  }
+  stopTimer();
   const total = state.questions.length;
   const durationSec = Math.round((Date.now() - state.startedAt) / 1000);
   const percent = Math.round((state.score / total) * 100);
+  state.boardMode = state.mode; // le classement s'ouvrira sur le bon mode
 
   $('quizProgress').style.width = '100%';
   $('scoreValue').textContent = `${state.score}/${total}`;
   $('scoreRing').style.setProperty('--pct', percent);
   $('resultTitle').textContent = percent >= 75 ? 'Excellent !' : percent >= 50 ? 'Pas mal !' : 'Continuez à réviser !';
-  $('resultDetail').textContent = `${percent} % de bonnes réponses sur le thème ${state.topic.name}, en ${durationSec} s.`;
+  $('resultDetail').textContent = state.mode === 'examen'
+    ? `${timeUp ? 'Temps écoulé ! ' : ''}${percent} % de bonnes réponses à l'examen, en ${durationSec} s.`
+    : `${percent} % de bonnes réponses sur le thème ${state.topic.name}, en ${durationSec} s.`;
+  $('replayBtn').innerHTML = state.mode === 'examen'
+    ? '<i class="bi bi-arrow-repeat me-1"></i>Repasser l\'examen'
+    : '<i class="bi bi-arrow-repeat me-1"></i>Rejouer ce thème';
   $('saveStatus').className = 'small mb-4 text-muted';
   $('saveStatus').textContent = 'Enregistrement du score…';
   showView('result');
@@ -241,7 +314,7 @@ async function finishQuiz() {
       body: JSON.stringify({
         pseudo: checkPseudo(),
         topic: state.topic.id,
-        mode: 'libre',
+        mode: state.mode,
         score: state.score,
         total,
         durationSec,
@@ -264,13 +337,24 @@ function formatDuration(sec) {
   return m > 0 ? `${m} min ${s} s` : `${s} s`;
 }
 
+function topicName(id) {
+  if (id === EXAM_TOPIC.id) return EXAM_TOPIC.name;
+  const topic = state.topics.find((t) => t.id === id);
+  return topic ? topic.name : id;
+}
+
 async function loadLeaderboard() {
+  document.querySelectorAll('[data-board]').forEach((btn) => {
+    const active = btn.dataset.board === state.boardMode;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
   const body = $('boardBody');
   body.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Chargement…</td></tr>';
 
   let rows;
   try {
-    rows = await api('/api/leaderboard?mode=libre');
+    rows = await api(`/api/leaderboard?mode=${state.boardMode}`);
   } catch (err) {
     body.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4"></td></tr>';
     body.querySelector('td').textContent = `Classement indisponible : ${err.message}`;
@@ -282,7 +366,6 @@ async function loadLeaderboard() {
     return;
   }
 
-  const topicNames = Object.fromEntries(state.topics.map((t) => [t.id, t.name]));
   body.innerHTML = '';
   rows.forEach((row, i) => {
     const tr = document.createElement('tr');
@@ -296,7 +379,7 @@ async function loadLeaderboard() {
     const cells = tr.querySelectorAll('td');
     // Le pseudo vient des utilisateurs : on l'insère avec textContent (protection XSS)
     cells[1].textContent = row.pseudo;
-    cells[2].textContent = topicNames[row.topic] || row.topic;
+    cells[2].textContent = topicName(row.topic);
     cells[3].querySelector('.fw-semibold').textContent = `${row.score}/${row.total}`;
     cells[3].querySelector('.small').textContent = `(${Math.round((row.score / row.total) * 100)} %)`;
     body.appendChild(tr);
@@ -304,6 +387,12 @@ async function loadLeaderboard() {
 }
 
 $('refreshBoard').addEventListener('click', loadLeaderboard);
+document.querySelectorAll('[data-board]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    state.boardMode = btn.dataset.board;
+    loadLeaderboard();
+  });
+});
 
 // ---------- Démarrage ----------
 

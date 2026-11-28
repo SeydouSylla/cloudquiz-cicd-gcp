@@ -3,9 +3,9 @@
    la changer suffit pour qu'une nouvelle version se voie au premier coup d'œil. */
 
 :root {
-  --cq-accent: #2563eb;        /* bleu : version 1.x */
-  --cq-accent-dark: #1d4ed8;
-  --cq-accent-soft: #e8efff;
+  --cq-accent: #16a34a;        /* vert : version 2.x (bleu #2563eb en 1.x) */
+  --cq-accent-dark: #15803d;
+  --cq-accent-soft: #e6f6ec;
   --cq-ink: #0f172a;
   --cq-muted: #64748b;
   --cq-bg: #f6f8fb;
@@ -108,6 +108,12 @@ body {
   background: var(--cq-accent-soft);
   color: var(--cq-accent);
 }
+
+/* ---------- Mode examen (version 2.0.0) ---------- */
+.exam-card { border: 1.5px solid var(--cq-accent); background: linear-gradient(135deg, #fff 60%, var(--cq-accent-soft)); }
+.timer-badge { background: var(--cq-accent-soft); color: var(--cq-accent-dark); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.timer-badge.is-urgent { background: #fee2e2; color: #b91c1c; }
+.board-modes .btn.active { background: var(--cq-accent); border-color: var(--cq-accent); color: #fff; }
 
 /* ---------- Quiz ---------- */
 .quiz-wrapper { max-width: 760px; }
